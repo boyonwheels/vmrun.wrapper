@@ -100,3 +100,9 @@ REFERENCES AND DOCUMENTATION
 * [MacPorts StartupItems](https://guide.macports.org/chunked/reference.startupitems.html)
 * [More Explanation in the Guide for StartupItems](https://trac.macports.org/ticket/16930)
 * [Daemondo Source Code](https://trac.macports.org/browser/trunk/base/src/programs/daemondo/main.c)
+
+
+SEE ALSO
+===
+
+Joseph Chilcote (@chilcote) has built a nice python tool called [vserv](https://github.com/chilcote/vserv) also based on the ideas of this shell script. His tool is a little more comprehensive then this shell script. You should take a look at it, too! 
