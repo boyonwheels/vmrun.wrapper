@@ -1,0 +1,127 @@
+#!/bin/bash
+#
+# A wrapper script to control vmrun with launchd.
+# This script should be called with two arguments: the command to run on the VM (start 
+# or stop), and the path to the vmx file.
+#
+
+#
+# Initialize variables.
+#
+PATH=${PATH}:"/Applications/VMware Fusion.app/Contents/Library/"
+
+SCRIPT_NAME="$(basename ${0})"
+VMX_PATH="${2}"
+
+#
+# Is the VM currently running? Save it into a variable to test in other functions.
+#
+function Check_PID()
+{
+	# Sooner or later I'm going to regret this line of code.
+	ACTIVE_PID=$(ps ax |grep -v grep |grep -v ${0} |grep "${VMX_PATH}" |awk '{print $1}')
+}
+
+#
+# Log to stdout. Use launchd.plist's StandardOutPath to create troubleshooting logs.
+#
+function Log()
+{
+	DATE=$(date +"%Y-%m-%d %T")
+	echo ${DATE} ${SCRIPT_NAME}: ${1}
+}
+
+#
+# Start
+#
+function Start()
+{
+	Log "Running vmrun.wrapper Start cmd with path: ${VMX_PATH}"
+	# Make sure the vmx file is at the given path before trying to start it.
+	if [[ ! -f "${VMX_PATH}" ]]; then
+		Log "Cannot start the VM because the vmx file was not found at path: ${VMX_PATH}"
+		exit 1
+	fi
+
+	Check_PID
+
+	# If there isn't a running process that matches the vmx path start the VM.
+	if [[ -z ${ACTIVE_PID} ]]; then
+		Log "VM conflict check passed. Starting VM at ${VMX_PATH}"
+		# Start the VM specified by the vmx file
+		vmrun -T fusion start "${VMX_PATH}" nogui
+		Log "vmrun exited with code: ${?}"
+		Check_PID
+	else
+		Log "VM appears to be already running."
+	fi
+	
+	Log "Finished vmrun.wrapper Start cmd. VM has PID: ${ACTIVE_PID}"
+}
+
+#
+# Stop
+#
+function Stop()
+{
+	Log "Running vmrun.wrapper Stop cmd with path: ${VMX_PATH}"
+
+	Check_PID
+	
+	if [[ -z ${ACTIVE_PID} ]]; then
+		Log "VM appears to be stopped already. Nothing to do."
+		exit 0
+	fi
+	
+	TOOL_STATUS=$(vmrun checkToolsState ${VMX_PATH})
+	
+	if [[ ${TOOL_STATUS} == "installed" ]]; then
+		Log "VMware tools are: ${TOOL_STATUS}. Attempting a soft shutdown."
+		vmrun stop "${VMX_PATH}" soft
+		Log "vmrun exited with code: ${?}"
+	else
+		Log "VMware tools are: ${TOOL_STATUS}. Attempting a hard shutdown."
+		vmrun stop "${VMX_PATH}" hard
+		Log "vmrun exited with code: ${?}"
+	fi
+	
+	Log "Finished vmrun.wrapper Stop cmd."
+	exit 0
+}
+
+#
+# Run
+#
+function Run()
+{
+case $1 in
+  start  ) Start   ;;
+  stop   ) Stop    ;;
+  *      ) echo "$0: unknown argument: $1";;
+esac
+}
+
+#
+# Run a phase based on the selector
+#
+
+Run ${1}
+
+# Register signals for launchd handling.
+trap Stop SIGHUP SIGINT SIGTERM
+sleep 5
+
+while [[ true ]]; do
+
+	# Uncomment this line if you want to see the run loop.
+	#Log "Checking on the status of VM with PID ${ACTIVE_PID}"
+	ps ${ACTIVE_PID} |sed 1d |grep -o ${VMX_PATH} > /dev/null
+	
+	if [[ ${?} != 0 ]]; then
+		Log "VM at ${VMX_PATH} with PID ${ACTIVE_PID} appears to have died. Exiting..."
+		exit 1
+	fi
+	
+	sleep 5
+	
+done
