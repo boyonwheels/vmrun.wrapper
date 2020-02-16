@@ -36,12 +36,16 @@ function Log()
 #
 function Start()
 {
+
 	Log "Running vmrun.wrapper Start cmd with path: ${VMX_PATH}"
+
 	# Make sure the vmx file is at the given path before trying to start it.
-	if [[ ! -f "${VMX_PATH}" ]]; then
-		Log "Cannot start the VM because the vmx file was not found at path: ${VMX_PATH}"
-		exit 1
-	fi
+	# TODO: Fix handling of paths with spaces here
+	
+	# if [[ ! -f "${VMX_PATH}" ]]; then
+	# 	Log "Cannot start the VM because the vmx file was not found at path: ${VMX_PATH}"
+	# 	exit 1
+	# fi
 
 	Check_PID
 
